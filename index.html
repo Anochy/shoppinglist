@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="theme-color" content="#1a6b3a" />
+<title>Shopping List / רשימת קניות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green: #1a6b3a;
+  --green-light: #e8f5ed;
+  --green-mid: #2d8a4e;
+  --green-dark: #114d29;
+  --accent: #f0a500;
+  --accent-light: #fff8e6;
+  --red: #d63031;
+  --red-light: #ffeaea;
+  --bg: #f4f6f4;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #6b7280;
+  --border: #e2e8e2;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.14);
+}
+
+/* DARK MODE */
+[data-theme="dark"] {
+  --green: #2d8a4e;
+  --green-light: #1a3326;
+  --green-mid: #3aa863;
+  --green-dark: #1a6b3a;
+  --accent: #f0a500;
+  --accent-light: #2d2200;
+  --red: #ff6b6b;
+  --red-light: #2d1515;
+  --bg: #0f1410;
+  --card: #1a2018;
+  --text: #e8f0e8;
+  --text-muted: #7a9478;
+  --border: #2a3828;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Rubik', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  transition: background 0.2s, color 0.2s;
+}
+
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--card);
+  position: relative;
+  overflow: hidden;
+}
+
+.screen { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+.screen.active { display: flex; }
+
+.header {
+  background: var(--green);
+  color: #fff;
+  padding: 16px 16px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  position: relative;
+}
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.header-sub { font-size: 12px; opacity: 0.75; margin-top: 1px; }
+.header-actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.icon-btn {
+  width: 36px; height: 36px;
+  background: rgba(255,255,255,0.15);
+  border: none; border-radius: 10px;
+  color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; transition: background 0.15s;
+  flex-shrink: 0;
+}
+.icon-btn:active { background: rgba(255,255,255,0.3); }
+
+.scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* WELCOME */
+#screen-welcome {
+  background: var(--green);
+  justify-content: center;
+  align-items: center;
+  padding: 40px 32px;
+  gap: 0;
+}
+.welcome-logo {
+  width: 88px; height: 88px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 44px; margin-bottom: 24px;
+}
+.welcome-title { font-size: 28px; font-weight: 700; color: #fff; text-align: center; }
+.welcome-sub { font-size: 14px; color: rgba(255,255,255,0.72); text-align: center; margin-top: 6px; margin-bottom: 40px; }
+.welcome-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+.welcome-card label { font-size: 13px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 8px; }
+.lang-toggle { display: flex; gap: 8px; margin-bottom: 24px; }
+.lang-btn {
+  flex: 1; padding: 8px; border-radius: var(--radius-sm);
+  border: 2px solid var(--border); background: transparent;
+  font-family: 'Rubik', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; color: var(--text-muted);
+}
+.lang-btn.active { border-color: var(--green); background: var(--green-light); color: var(--green); }
+
+/* INPUTS & BUTTONS */
+input[type="text"], input[type="number"] {
+  width: 100%; padding: 13px 16px;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  font-family: 'Rubik', sans-serif; font-size: 16px;
+  background: var(--bg); color: var(--text);
+  outline: none; transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+input:focus { border-color: var(--green); background: var(--card); }
+input::placeholder { color: var(--text-muted); }
+
+.btn {
+  width: 100%; padding: 14px;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Rubik', sans-serif; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; display: flex;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:active:not(:disabled) { background: var(--green-dark); transform: scale(0.98); }
+.btn-secondary { background: var(--green-light); color: var(--green); border: 2px solid var(--green); }
+.btn-secondary:active:not(:disabled) { background: #d0ecd8; transform: scale(0.98); }
+.btn-danger { background: var(--red-light); color: var(--red); border: 2px solid var(--red); }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 2px solid var(--border); }
+
+/* HOME */
+#screen-home .scroll-body { justify-content: center; }
+.home-section { background: var(--bg); border-radius: var(--radius); padding: 20px; }
+.home-section h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-muted); font-size: 13px; margin: 4px 0;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* LIST */
+.pin-badge {
+  background: rgba(255,255,255,0.18); padding: 4px 12px;
+  border-radius: 20px; font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer; transition: background 0.15s;
+}
+.pin-badge:active { background: rgba(255,255,255,0.35); }
+
+.add-bar {
+  background: var(--card); border-top: 1px solid var(--border);
+  padding: 10px 14px 12px; flex-shrink: 0;
+}
+.add-row { display: flex; gap: 8px; align-items: flex-end; }
+.add-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.add-row-inner { display: flex; gap: 6px; }
+.add-row-inner input:first-child { flex: 1; min-width: 0; }
+.add-row-inner input:last-child { width: 64px; flex-shrink: 0; }
+.add-submit {
+  width: 46px; height: 46px; flex-shrink: 0;
+  background: var(--green); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 22px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  align-self: flex-end; transition: background 0.15s;
+}
+.add-submit:active { background: var(--green-dark); transform: scale(0.96); }
+
+
+/* ITEMS */
+.section-label {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  padding: 4px 0 8px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.item-card {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  transition: all 0.2s; animation: slideIn 0.2s ease;
+}
+.item-card.bought { background: var(--green-light); border-color: transparent; opacity: 0.7; }
+.item-card.pinned { border-color: var(--accent); }
+
+@keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+.check-btn {
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 50%; border: 2px solid var(--border);
+  background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; transition: all 0.15s;
+}
+.check-btn.checked { background: var(--green); border-color: var(--green); color: #fff; }
+
+.item-info { flex: 1; min-width: 0; }
+.item-name { font-size: 15px; font-weight: 600; line-height: 1.3; word-break: break-word; }
+.item-card.bought .item-name { text-decoration: line-through; color: var(--text-muted); }
+.item-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.item-qty { background: var(--accent-light); color: #9a6c00; font-weight: 700; padding: 1px 7px; border-radius: 6px; font-size: 11px; }
+.item-comment { font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 3px; }
+.item-pin-icon { font-size: 12px; }
+
+.item-actions { display: flex; gap: 4px; align-items: center; }
+.del-btn {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--red-light); border: none; border-radius: 8px;
+  color: var(--red); cursor: pointer; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+.edit-btn {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--accent-light); border: none; border-radius: 8px;
+  color: var(--accent); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-btn {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--bg); border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* EDIT INLINE */
+.item-edit-form {
+  background: var(--bg); border-radius: var(--radius-sm);
+  padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  animation: slideIn 0.15s ease;
+}
+.item-edit-row { display: flex; gap: 6px; }
+.item-edit-row input { padding: 8px 10px; font-size: 14px; }
+.item-edit-btns { display: flex; gap: 6px; }
+.item-edit-btns button { flex: 1; padding: 8px; font-size: 13px; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* MODAL */
+.modal-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: flex-end;
+  z-index: 100; animation: fadeIn 0.15s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--card); border-radius: 20px 20px 0 0;
+  padding: 24px 20px 32px; width: 100%;
+  animation: slideUp 0.25s ease;
+  max-height: 80vh; overflow-y: auto;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+.modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+.modal .btn + .btn { margin-top: 10px; }
+
+/* TOAST */
+.toast {
+  position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--card); padding: 10px 20px;
+  border-radius: 24px; font-size: 14px; font-weight: 500;
+  white-space: nowrap; z-index: 200;
+  animation: toastIn 0.2s ease, toastOut 0.3s 1.7s ease forwards;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(10px); } }
+
+/* HISTORY */
+#screen-history .item-card { opacity: 0.8; }
+#screen-history .item-name { text-decoration: line-through; color: var(--text-muted); }
+
+/* SPINNER */
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 40px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* LTR */
+html[dir="ltr"] { direction: ltr; }
+html[dir="ltr"] .header { flex-direction: row; }
+
+/* SETTINGS TOGGLE */
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 15px; font-weight: 500; }
+.setting-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.toggle {
+  width: 50px; height: 28px; background: var(--border);
+  border-radius: 14px; position: relative; cursor: pointer;
+  transition: background 0.2s; border: none; flex-shrink: 0;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+  content: ''; position: absolute; top: 3px; right: 3px;
+  width: 22px; height: 22px; background: #fff;
+  border-radius: 50%; transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+html[dir="ltr"] .toggle::after { right: auto; left: 3px; }
+.toggle.on::after { transform: translateX(-22px); }
+html[dir="ltr"] .toggle.on::after { transform: translateX(22px); }
+
+/* MEMBERS LIST */
+.member-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.member-row:last-child { border-bottom: none; }
+.member-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--green-light); color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 16px; flex-shrink: 0;
+}
+.member-avatar.pending { background: var(--accent-light); color: var(--accent); }
+.member-name { flex: 1; font-size: 15px; font-weight: 500; }
+.member-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; background: var(--accent-light); color: var(--accent);
+}
+.member-badge.admin { background: var(--green-light); color: var(--green); }
+.kick-btn {
+  padding: 4px 10px; border-radius: 8px;
+  background: var(--red-light); color: var(--red);
+  border: none; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+}
+.approve-btn {
+  padding: 4px 10px; border-radius: 8px;
+  background: var(--green-light); color: var(--green);
+  border: none; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: 'Rubik', sans-serif; margin-left: 4px;
+}
+
+/* PENDING BADGE on settings icon */
+.badge-dot {
+  position: absolute; top: -3px; right: -3px;
+  width: 10px; height: 10px; background: var(--red);
+  border-radius: 50%; border: 2px solid var(--green);
+}
+.icon-btn { position: relative; }
+
+/* STATS */
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 4px;
+}
+.stat-card {
+  background: var(--bg); border-radius: var(--radius-sm);
+  padding: 14px; text-align: center;
+}
+.stat-num { font-size: 28px; font-weight: 700; color: var(--green); }
+.stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stat-bar-wrap { margin-top: 8px; background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+.stat-bar { height: 6px; background: var(--green); border-radius: 4px; transition: width 0.6s ease; }
+.top-item-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.top-item-row:last-child { border-bottom: none; }
+
+/* PHOTO */
+.item-img {
+  width: 48px; height: 48px; border-radius: 8px;
+  object-fit: cover; flex-shrink: 0; cursor: pointer;
+  border: 1.5px solid var(--border);
+}
+.photo-btn {
+  width: 46px; height: 46px; flex-shrink: 0;
+  background: var(--bg); color: var(--text-muted);
+  border: 2px dashed var(--border); border-radius: var(--radius-sm);
+  font-size: 20px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  align-self: flex-end; transition: all 0.15s;
+}
+.photo-btn:active { background: var(--green-light); border-color: var(--green); }
+.photo-btn.has-photo { background: var(--green-light); border-color: var(--green); border-style: solid; }
+.img-preview {
+  width: 100%; max-height: 160px; object-fit: cover;
+  border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+  margin-top: 4px;
+}
+.img-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.82);
+  z-index: 300; display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.15s;
+}
+.img-overlay img { max-width: 92%; max-height: 80vh; border-radius: 12px; }
+.img-overlay-close {
+  position: absolute; top: 18px; right: 18px;
+  background: rgba(255,255,255,0.15); border: none; color: #fff;
+  font-size: 22px; width: 40px; height: 40px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+/* SEARCH BAR */
+.search-bar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  flex-shrink: 0;
+  position: relative;
+}
+.search-bar-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-bar-inner input {
+  width: 100%;
+  padding: 10px 38px 10px 36px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'Rubik', sans-serif;
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+}
+.search-bar-inner input:focus {
+  border-color: var(--green);
+  background: var(--card);
+}
+.search-bar-inner input::placeholder { color: var(--text-muted); }
+.search-icon {
+  position: absolute;
+  right: 12px;
+  font-size: 17px;
+  color: var(--text-muted);
+  pointer-events: none;
+  line-height: 1;
+}
+.search-clear {
+  position: absolute;
+  left: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 17px;
+  display: none;
+  padding: 0;
+  line-height: 1;
+  font-family: 'Rubik', sans-serif;
+}
+.search-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+.search-empty .icon { font-size: 40px; margin-bottom: 10px; }
+.search-empty p { font-size: 14px; }
+
+/* PENDING JOIN BANNER */
+.pending-banner {
+  background: var(--accent-light); border: 1.5px solid var(--accent);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  font-size: 14px; color: var(--text); text-align: center;
+  margin-bottom: 4px;
+}
+
+/* SECTION CARD */
+.section-card {
+  background: var(--bg); border-radius: var(--radius); padding: 16px 20px;
+}
+.section-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- WELCOME -->
+  <div id="screen-welcome" class="screen active">
+    <div class="welcome-logo">🛒</div>
+    <div class="welcome-title" id="wt">רשימת קניות</div>
+    <div class="welcome-sub" id="ws">קניות משפחתיות, ביחד</div>
+    <div class="welcome-card">
+      <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('he')" id="lb-he">עברית</button>
+        <button class="lang-btn" onclick="setLang('en')" id="lb-en">English</button>
+      </div>
+      <label id="lbl-name">השם שלך</label>
+      <input type="text" id="input-name" placeholder="לדוגמה: דוד" style="margin-bottom:16px;" />
+      <button class="btn btn-primary" onclick="saveName()" id="btn-continue">המשך</button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen">
+    <div class="header">
+      <div>
+        <div style="font-size:18px;font-weight:700;" id="h-title">שלום! 👋</div>
+        <div class="header-sub" id="h-sub">בחר אפשרות</div>
+      </div>
+      <button class="icon-btn" onclick="toggleDarkMode()" id="btn-dark-home" title="מצב כהה">🌙</button>
+    </div>
+    <div class="scroll-body" style="gap:16px;">
+      <div class="home-section">
+        <h2 id="hs-create">יצירת קבוצה חדשה</h2>
+        <button class="btn btn-primary" onclick="createGroup()" id="btn-create">+ צור קבוצה</button>
+      </div>
+      <div class="divider" id="div-or">או</div>
+      <div class="home-section">
+        <h2 id="hs-join">הצטרפות לקבוצה קיימת</h2>
+        <input type="text" id="input-pin" maxlength="6" placeholder="הזן PIN בן 6 ספרות" style="margin-bottom:10px;text-align:center;letter-spacing:4px;font-size:20px;font-weight:700;" />
+        <button class="btn btn-secondary" onclick="joinGroup()" id="btn-join">הצטרף</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIST -->
+  <div id="screen-list" class="screen">
+    <div class="header">
+      <div>
+        <div style="font-size:18px;font-weight:700;" id="list-title">רשימת קניות</div>
+        <div class="pin-badge" id="pin-display" onclick="copyPin()">PIN: ------</div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btn-refresh" onclick="refreshList()" title="רענון" style="font-size:15px;">🔄</button>
+        <button class="icon-btn" onclick="showStats()" title="סטטיסטיקות">📊</button>
+        <button class="icon-btn" onclick="showHistory()" title="היסטוריה">🕐</button>
+        <button class="icon-btn" id="btn-settings" onclick="showSettings()" title="הגדרות" style="display:none;">⚙️<span id="pending-dot" style="display:none;" class="badge-dot"></span></button>
+        <button class="icon-btn" onclick="leaveGroup()" title="יציאה">🚪</button>
+      </div>
+    </div>
+    <div class="search-bar" id="search-bar">
+      <div class="search-bar-inner">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="חפש פריט..." oninput="onSearchInput(this.value)" autocomplete="off" />
+        <button class="search-clear" id="search-clear" onclick="clearSearch()" aria-label="נקה חיפוש">✕</button>
+      </div>
+    </div>
+    <div class="scroll-body" id="items-container">
+      <div class="spinner"></div>
+    </div>
+    <div class="add-bar">
+      <div class="add-row">
+        <div class="add-fields">
+          <div class="add-row-inner">
+            <input type="text" id="add-name" placeholder="שם המוצר" />
+            <input type="number" id="add-qty" placeholder="כמות" min="1" value="1" style="text-align:center;" />
+          </div>
+          <div class="add-row-inner">
+            <input type="text" id="add-note" placeholder="הערה (אופציונלי)" style="flex:1;" />
+            <button class="photo-btn" id="photo-btn-add" onclick="document.getElementById('photo-input-add').click()" title="צרף תמונה" style="width:46px;height:46px;flex-shrink:0;">📷</button>
+            <input type="file" id="photo-input-add" accept="image/*" style="display:none;" onchange="onPhotoSelected(this)" />
+          </div>
+        </div>
+        <button class="add-submit" onclick="addItem()">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="screen-history" class="screen">
+    <div class="header">
+      <button class="icon-btn" onclick="showScreen('list')">←</button>
+      <div style="font-size:18px;font-weight:700;flex:1;text-align:center;" id="hist-title">היסטוריה</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div class="scroll-body" id="history-container">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="screen-stats" class="screen">
+    <div class="header">
+      <button class="icon-btn" onclick="showScreen('list')">←</button>
+      <div style="font-size:18px;font-weight:700;flex:1;text-align:center;" id="stats-title">סטטיסטיקות</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div class="scroll-body" id="stats-container">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="screen-settings" class="screen">
+    <div class="header">
+      <button class="icon-btn" onclick="showScreen('list')">←</button>
+      <div style="font-size:18px;font-weight:700;flex:1;text-align:center;" id="set-title">הגדרות</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div class="scroll-body" style="gap:14px;">
+
+      <!-- Toggles -->
+      <div class="section-card">
+        <div class="setting-row">
+          <div>
+            <div class="setting-label" id="set-del-label">חברים יכולים למחוק פריטים</div>
+          </div>
+          <button class="toggle on" id="toggle-delete" onclick="toggleDeletePerm()"></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label" id="set-approve-label">אישור הצטרפות ידני</div>
+            <div class="setting-sub" id="set-approve-sub">חברים חדשים מחכים לאישורך</div>
+          </div>
+          <button class="toggle on" id="toggle-approve" onclick="toggleApprovePerm()"></button>
+        </div>
+        <div class="setting-row" style="border-bottom:none;">
+          <div class="setting-label" id="set-dark-label">מצב כהה</div>
+          <button class="toggle" id="toggle-dark" onclick="toggleDarkMode()"></button>
+        </div>
+      </div>
+
+      <!-- Members -->
+      <div class="section-card">
+        <h3 id="set-members-title">חברי הקבוצה</h3>
+        <div id="members-list"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Export -->
+      <button class="btn btn-secondary" onclick="exportList()" id="btn-export">📤 ייצוא רשימה</button>
+      <button class="btn btn-danger" onclick="confirmLeave()" id="btn-leave-set">עזוב קבוצה</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://nzliunvccetfskddzemf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56bGl1bnZjY2V0ZnNrZGR6ZW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTM0MzEsImV4cCI6MjA5NTQ2OTQzMX0.YObAU-NzNIKw3y-5Ep0wEy35UZ8Q1GhXw_8DNUpURUU';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
+// ─── STATE ───
+let state = {
+  lang: localStorage.getItem('sl_lang') || 'he',
+  userId: localStorage.getItem('sl_userid') || genId(),
+  userName: localStorage.getItem('sl_username') || '',
+  groupId: localStorage.getItem('sl_groupid') || '',
+  groupPin: localStorage.getItem('sl_grouppin') || '',
+  isCreator: localStorage.getItem('sl_iscreator') === 'true',
+  allowMemberDelete: true,
+  requireApproval: true,
+  isPending: false,
+  realtimeSub: null,
+  memberSub: null,
+  darkMode: localStorage.getItem('sl_dark') === 'true',
+  items: [],
+  editingId: null,
+  pendingPhoto: null,
+  searchQuery: ''
+};
+
+localStorage.setItem('sl_userid', state.userId);
+if (state.darkMode) document.documentElement.setAttribute('data-theme', 'dark');
+
+function genId() {
+  const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  localStorage.setItem('sl_userid', id);
+  return id;
+}
+
+// ─── TRANSLATIONS ───
+const T = {
+  he: {
+    appTitle: 'רשימת קניות', appSub: 'קניות משפחתיות, ביחד',
+    yourName: 'השם שלך', namePlaceholder: 'לדוגמה: דוד',
+    continueBtnTxt: 'המשך', hello: 'שלום', chooseOption: 'בחר אפשרות',
+    createGroup: 'יצירת קבוצה חדשה', createBtn: '+ צור קבוצה',
+    or: 'או', joinGroup: 'הצטרפות לקבוצה קיימת',
+    pinPlaceholder: 'הזן PIN בן 6 ספרות', joinBtn: 'הצטרף',
+    shoppingList: 'רשימת קניות', history: 'היסטוריה',
+    settings: 'הגדרות', leave: 'עזוב',
+    itemName: 'שם המוצר', qty: 'כמות', note: 'הערה (אופציונלי)',
+    toBuy: 'לקנות', bought: 'נקנה', pinned: '📌 נעוץ',
+    emptyList: 'הרשימה ריקה\nהוסף מוצרים למטה',
+    emptyHistory: 'אין עדיין פריטים שנקנו',
+    allowDelete: 'חברים יכולים למחוק', requireApproval: 'אישור הצטרפות',
+    approvalSub: 'חברים חדשים מחכים לאישורך',
+    leaveGroup: 'עזוב קבוצה', pinCopied: '✓ PIN הועתק',
+    enterName: 'אנא הזן שם', enterPin: 'אנא הזן PIN',
+    invalidPin: 'PIN לא נמצא', dir: 'rtl',
+    by: 'נוסף ע"י', confirmLeave: 'האם אתה בטוח שברצונך לצאת?',
+    yes: 'כן, צא', no: 'ביטול',
+    pendingApproval: '⏳ ממתין לאישור המנהל',
+    pendingMsg: 'בקשת ההצטרפות שלך נשלחה. המנהל יאשר אותך בקרוב.',
+    approved: '✅ אושרת לקבוצה!',
+    kicked: 'הוסרת מהקבוצה',
+    approve: 'אשר', kick: 'הסר',
+    membersTitle: 'חברי הקבוצה',
+    statsTitle: 'סטטיסטיקות',
+    totalItems: 'סה"כ פריטים', boughtItems: 'פריטים שנקנו',
+    pendingItems: 'ממתינים', completionRate: 'אחוז השלמה',
+    topItems: 'פריטים נפוצים', noStats: 'אין עדיין נתונים',
+    exportTitle: 'ייצוא רשימה', darkMode: 'מצב כהה',
+    clearBought: 'נקה פריטים שנקנו',
+    save: 'שמור', cancel: 'ביטול',
+    editItem: 'עריכת פריט',
+    pinItem: 'נעץ', unpinItem: 'הסר נעיצה',
+    export: '📤 ייצוא רשימה',
+    addNote: 'הוסף הערה',
+    searchPlaceholder: 'חפש פריט...',
+    searchEmpty: 'לא נמצאו פריטים עבור',
+    keepAlive: 'שמירה על השרת פעיל', pingCount: 'פינגים', lastPing: 'פינג אחרון', never: 'עדיין לא'
+  },
+  en: {
+    appTitle: 'Shopping List', appSub: 'Family shopping, together',
+    yourName: 'Your name', namePlaceholder: 'e.g. David',
+    continueBtnTxt: 'Continue', hello: 'Hello', chooseOption: 'Choose an option',
+    createGroup: 'Create a new group', createBtn: '+ Create group',
+    or: 'or', joinGroup: 'Join an existing group',
+    pinPlaceholder: 'Enter 6-digit PIN', joinBtn: 'Join',
+    shoppingList: 'Shopping List', history: 'History',
+    settings: 'Settings', leave: 'Leave',
+    itemName: 'Item name', qty: 'Qty', note: 'Note (optional)',
+    toBuy: 'To buy', bought: 'Bought', pinned: '📌 Pinned',
+    emptyList: 'The list is empty\nAdd items below',
+    emptyHistory: 'No bought items yet',
+    allowDelete: 'Members can delete', requireApproval: 'Require approval',
+    approvalSub: 'New members wait for your approval',
+    leaveGroup: 'Leave group', pinCopied: '✓ PIN copied',
+    enterName: 'Please enter your name', enterPin: 'Please enter a PIN',
+    invalidPin: 'PIN not found', dir: 'ltr',
+    by: 'Added by', confirmLeave: 'Are you sure you want to leave?',
+    yes: 'Yes, leave', no: 'Cancel',
+    pendingApproval: '⏳ Waiting for admin approval',
+    pendingMsg: 'Your join request was sent. The admin will approve you soon.',
+    approved: '✅ You have been approved!',
+    kicked: 'You were removed from the group',
+    approve: 'Approve', kick: 'Remove',
+    membersTitle: 'Group Members',
+    statsTitle: 'Statistics',
+    totalItems: 'Total items', boughtItems: 'Bought items',
+    pendingItems: 'Pending', completionRate: 'Completion rate',
+    topItems: 'Top items', noStats: 'No data yet',
+    exportTitle: 'Export List', darkMode: 'Dark mode',
+    clearBought: 'Clear bought items',
+    save: 'Save', cancel: 'Cancel',
+    editItem: 'Edit item',
+    pinItem: 'Pin', unpinItem: 'Unpin',
+    export: '📤 Export list',
+    addNote: 'Add note',
+    searchPlaceholder: 'Search items...',
+    searchEmpty: 'No items found for',
+    keepAlive: 'Server keep-alive', pingCount: 'Pings', lastPing: 'Last ping', never: 'Not yet'
+  }
+};
+
+function t(key) { return T[state.lang][key] || key; }
+
+// ─── DARK MODE ───
+function toggleDarkMode() {
+  state.darkMode = !state.darkMode;
+  localStorage.setItem('sl_dark', state.darkMode);
+  document.documentElement.setAttribute('data-theme', state.darkMode ? 'dark' : '');
+  const tog = document.getElementById('toggle-dark');
+  if (tog) tog.classList.toggle('on', state.darkMode);
+  const btn = document.getElementById('btn-dark-home');
+  if (btn) btn.textContent = state.darkMode ? '☀️' : '🌙';
+}
+
+// ─── LANG ───
+function setLang(lang) {
+  state.lang = lang;
+  localStorage.setItem('sl_lang', lang);
+  document.documentElement.dir = T[lang].dir;
+  document.documentElement.lang = lang;
+  document.getElementById('lb-he').classList.toggle('active', lang === 'he');
+  document.getElementById('lb-en').classList.toggle('active', lang === 'en');
+  applyTranslations();
+}
+
+function applyTranslations() {
+  const lang = state.lang;
+  document.documentElement.dir = T[lang].dir;
+  document.getElementById('wt').textContent = t('appTitle');
+  document.getElementById('ws').textContent = t('appSub');
+  document.getElementById('lbl-name').textContent = t('yourName');
+  document.getElementById('input-name').placeholder = t('namePlaceholder');
+  document.getElementById('btn-continue').textContent = t('continueBtnTxt');
+  document.getElementById('h-sub').textContent = t('chooseOption');
+  document.getElementById('hs-create').textContent = t('createGroup');
+  document.getElementById('btn-create').textContent = t('createBtn');
+  document.getElementById('div-or').textContent = t('or');
+  document.getElementById('hs-join').textContent = t('joinGroup');
+  document.getElementById('input-pin').placeholder = t('pinPlaceholder');
+  document.getElementById('btn-join').textContent = t('joinBtn');
+  document.getElementById('list-title').textContent = t('shoppingList');
+  document.getElementById('hist-title').textContent = t('history');
+  document.getElementById('set-title').textContent = t('settings');
+  document.getElementById('add-name').placeholder = t('itemName');
+  document.getElementById('add-qty').placeholder = t('qty');
+  document.getElementById('add-note').placeholder = t('note');
+  document.getElementById('set-del-label').textContent = t('allowDelete');
+  document.getElementById('set-approve-label').textContent = t('requireApproval');
+  document.getElementById('set-approve-sub').textContent = t('approvalSub');
+  document.getElementById('set-dark-label').textContent = t('darkMode');
+  document.getElementById('btn-leave-set').textContent = t('leaveGroup');
+  document.getElementById('set-members-title').textContent = t('membersTitle');
+  document.getElementById('stats-title').textContent = t('statsTitle');
+  document.getElementById('btn-export').textContent = t('export');
+  const si = document.getElementById('search-input');
+  if (si) si.placeholder = t('searchPlaceholder');
+  if (state.userName) document.getElementById('h-title').textContent = t('hello') + ', ' + state.userName + '! 👋';
+}
+
+// ─── SCREENS ───
+const SUB_SCREENS = ['history', 'stats', 'settings'];
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (SUB_SCREENS.includes(name)) {
+    // Push a sentinel so the back button has something to pop back to
+    history.pushState({ subScreen: name }, '');
+  }
+}
+
+// Android hardware back button: if a sub-screen is open, go back to list
+window.addEventListener('popstate', function(e) {
+  const activeId = (document.querySelector('.screen.active') || {}).id || '';
+  const current = activeId.replace('screen-', '');
+  if (SUB_SCREENS.includes(current)) {
+    // Don't call showScreen (would push another state); just switch screen directly
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-list').classList.add('active');
+  }
+});
+
+// ─── WELCOME ───
+function saveName() {
+  const name = document.getElementById('input-name').value.trim();
+  if (!name) { showToast(t('enterName')); return; }
+  state.userName = name;
+  localStorage.setItem('sl_username', name);
+  document.getElementById('h-title').textContent = t('hello') + ', ' + name + '! 👋';
+  if (state.groupId) { enterList(); } else { showScreen('home'); }
+}
+
+
+// ─── GROUP ───
+function genPin() { return Math.floor(100000 + Math.random() * 900000).toString(); }
+
+async function createGroup() {
+  const btn = document.getElementById('btn-create');
+  btn.disabled = true;
+  const pin = genPin();
+  const { data, error } = await sb.from('groups').insert({
+    pin, creator_id: state.userId, allow_member_delete: true, require_approval: true
+  }).select().single();
+  btn.disabled = false;
+  if (error) { showToast('Error: ' + error.message); return; }
+  state.groupId = data.id;
+  state.groupPin = pin;
+  state.isCreator = true;
+  state.allowMemberDelete = true;
+  state.requireApproval = true;
+  state.isPending = false;
+  saveGroupLocally();
+  await sb.from('members').insert({ group_id: data.id, user_id: state.userId, name: state.userName, status: 'approved' });
+  enterList();
+}
+
+async function joinGroup() {
+  const pin = document.getElementById('input-pin').value.trim();
+  if (!pin) { showToast(t('enterPin')); return; }
+  const btn = document.getElementById('btn-join');
+  btn.disabled = true;
+  const { data, error } = await sb.from('groups').select('*').eq('pin', pin).single();
+  btn.disabled = false;
+  if (error || !data) { showToast(t('invalidPin')); return; }
+  state.groupId = data.id;
+  state.groupPin = pin;
+  state.isCreator = data.creator_id === state.userId;
+  state.allowMemberDelete = data.allow_member_delete;
+  state.requireApproval = data.require_approval ?? true;
+  saveGroupLocally();
+
+  // Check if already a member
+  const { data: existing } = await sb.from('members').select('id,status').eq('group_id', data.id).eq('user_id', state.userId).single();
+  if (existing) {
+    state.isPending = existing.status === 'pending';
+  } else {
+    const memberStatus = (state.requireApproval && !state.isCreator) ? 'pending' : 'approved';
+    await sb.from('members').insert({ group_id: data.id, user_id: state.userId, name: state.userName, status: memberStatus });
+    state.isPending = memberStatus === 'pending';
+  }
+
+  enterList();
+}
+
+function saveGroupLocally() {
+  localStorage.setItem('sl_groupid', state.groupId);
+  localStorage.setItem('sl_grouppin', state.groupPin);
+  localStorage.setItem('sl_iscreator', state.isCreator);
+}
+
+function enterList() {
+  document.getElementById('pin-display').textContent = 'PIN: ' + state.groupPin;
+  document.getElementById('btn-settings').style.display = state.isCreator ? 'flex' : 'none';
+  document.querySelector('.add-bar').style.display = state.isPending ? 'none' : 'block';
+  clearSearch();
+  history.replaceState({ screen: 'list' }, '', '');
+  showScreen('list', false);
+  loadItems();
+  subscribeRealtime();
+}
+
+function leaveGroup() {
+  showModal(t('confirmLeave'), [
+    { label: t('yes'), cls: 'btn-danger', action: doLeave },
+    { label: t('no'), cls: 'btn-ghost', action: closeModal }
+  ]);
+}
+function confirmLeave() { leaveGroup(); }
+
+async function doLeave() {
+  closeModal();
+  if (state.realtimeSub) { sb.removeChannel(state.realtimeSub); state.realtimeSub = null; }
+  if (state.memberSub) { sb.removeChannel(state.memberSub); state.memberSub = null; }
+  await sb.from('members').delete().eq('group_id', state.groupId).eq('user_id', state.userId);
+  state.groupId = ''; state.groupPin = ''; state.isCreator = false; state.isPending = false;
+  localStorage.removeItem('sl_groupid'); localStorage.removeItem('sl_grouppin'); localStorage.removeItem('sl_iscreator');
+  showScreen('home');
+}
+
+// ─── ITEMS ───
+async function loadItems() {
+  const { data } = await sb.from('items').select('*').eq('group_id', state.groupId).order('pinned', { ascending: false }).order('created_at', { ascending: true });
+  state.items = data || [];
+  renderItems(state.items);
+  checkPendingMembers();
+}
+
+async function refreshList() {
+  const btn = document.getElementById('btn-refresh');
+  if (btn) { btn.style.pointerEvents = 'none'; btn.style.opacity = '0.5'; }
+  await loadItems();
+  if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+  showToast('✓ רשימה עודכנה');
+}
+
+// ─── SEARCH ───
+function onSearchInput(q) {
+  state.searchQuery = q;
+  const clearBtn = document.getElementById('search-clear');
+  if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+  renderItems(state.items);
+}
+
+function clearSearch() {
+  state.searchQuery = '';
+  const input = document.getElementById('search-input');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  renderItems(state.items);
+}
+
+function renderItems(items) {
+  const container = document.getElementById('items-container');
+  const q = (state.searchQuery || '').trim().toLowerCase();
+  const filtered = q
+    ? items.filter(i =>
+        (i.name || '').toLowerCase().includes(q) ||
+        (i.note || '').toLowerCase().includes(q) ||
+        (i.added_by || '').toLowerCase().includes(q)
+      )
+    : items;
+  const pending = filtered.filter(i => !i.bought);
+  const done = filtered.filter(i => i.bought);
+  let html = '';
+
+  // Pending banner for non-approved members
+  if (state.isPending) {
+    html += `<div class="pending-banner">${t('pendingMsg')}</div>`;
+    container.innerHTML = html;
+    return;
+  }
+
+  if (pending.length === 0 && done.length === 0) {
+    if (q) {
+      html += '<div class="search-empty"><div class="icon">🔍</div><p>' + t('searchEmpty') + ' "' + escHtml(state.searchQuery) + '"</p></div>';
+    } else {
+      html += '<div class="empty-state"><div class="icon">🛒</div><p>' + t('emptyList').replace('\n','<br>') + '</p></div>';
+    }
+  } else {
+    if (pending.length > 0) {
+      html += `<div class="section-label"><span>${t('toBuy')} (${pending.length})</span></div>`;
+      pending.forEach(item => { html += renderItem(item); });
+    }
+    if (done.length > 0) {
+      const clearBtn = state.isCreator ? `<button onclick="clearBought()" style="font-size:11px;padding:2px 8px;border-radius:6px;background:var(--red-light);color:var(--red);border:none;cursor:pointer;font-family:'Rubik',sans-serif;">${t('clearBought')}</button>` : '';
+      html += `<div class="section-label" style="margin-top:8px;"><span>${t('bought')} (${done.length})</span>${clearBtn}</div>`;
+      done.forEach(item => { html += renderItem(item); });
+    }
+  }
+  container.innerHTML = html;
+}
+
+
+function renderItem(item) {
+  const canDelete = state.isCreator || state.allowMemberDelete;
+  const checked = item.bought ? 'checked' : '';
+  const boughtCls = item.bought ? 'bought' : '';
+  const pinnedCls = item.pinned ? 'pinned' : '';
+
+  if (state.editingId === item.id) {
+    return `<div class="item-edit-form" id="item-${item.id}">
+      <div class="item-edit-row">
+        <input type="text" id="edit-name-${item.id}" value="${escHtml(item.name)}" style="flex:2;" />
+        <input type="number" id="edit-qty-${item.id}" value="${escHtml(String(item.quantity||1))}" style="flex:1;max-width:80px;text-align:center;" />
+      </div>
+      <input type="text" id="edit-note-${item.id}" value="${escHtml(item.note||'')}" placeholder="${t('note')}" />
+      ${item.image_url ? `<img class="img-preview" src="${escHtml(item.image_url)}" onclick="viewPhoto('${escHtml(item.image_url)}')" />` : ''}
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="photo-btn${item.image_url ? ' has-photo' : ''}" style="width:36px;height:36px;font-size:16px;" onclick="document.getElementById('photo-input-edit-${item.id}').click()">📷</button>
+        <span style="font-size:12px;color:var(--text-muted);">${item.image_url ? 'החלף תמונה' : 'הוסף תמונה'}</span>
+        <input type="file" id="photo-input-edit-${item.id}" accept="image/*" style="display:none;" onchange="onEditPhotoSelected(this,'${item.id}')" />
+      </div>
+      <div class="item-edit-btns">
+        <button class="btn btn-primary" style="flex:1;padding:8px;font-size:13px;" onclick="saveEdit('${item.id}')">💾 ${t('save')}</button>
+        <button class="btn btn-ghost" style="flex:1;padding:8px;font-size:13px;" onclick="cancelEdit()">✕ ${t('cancel')}</button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="item-card ${boughtCls} ${pinnedCls}" id="item-${item.id}">
+    <button class="check-btn ${checked}" onclick="toggleItem('${item.id}',${item.bought})" aria-label="toggle">${item.bought ? '✓' : ''}</button>
+    <div class="item-info">
+      <div class="item-name">${item.pinned ? '📌 ' : ''}${escHtml(item.name)}</div>
+      <div class="item-meta">
+        <span class="item-qty">×${escHtml(String(item.quantity || 1))}</span>
+        ${item.note ? '<span>' + escHtml(item.note) + '</span>' : ''}
+        <span style="color:var(--text-muted);font-size:11px;">${t('by')}: ${escHtml(item.added_by)}</span>
+      </div>
+    </div>
+    ${item.image_url ? `<img class="item-img" src="${escHtml(item.image_url)}" onclick="viewPhoto('${escHtml(item.image_url)}')" loading="lazy" />` : ''}
+    <div class="item-actions">
+      <button class="pin-btn" onclick="togglePin('${item.id}',${item.pinned||false})" title="${item.pinned ? t('unpinItem') : t('pinItem')}">${item.pinned ? '📌' : '📍'}</button>
+      <button class="edit-btn" onclick="startEdit('${item.id}')">✏️</button>
+      ${canDelete ? `<button class="del-btn" onclick="deleteItem('${item.id}')">✕</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── PHOTO ───
+function onPhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.pendingPhoto = { file, dataUrl: e.target.result };
+    const btn = document.getElementById('photo-btn-add');
+    if (btn) btn.classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadPhoto(file, itemId) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `items/${state.groupId}/${itemId}.${ext}`;
+  const { error } = await sb.storage.from('item-photos').upload(path, file, { upsert: true, contentType: file.type });
+  if (error) { console.error('Upload error', error); return null; }
+  const { data } = sb.storage.from('item-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function viewPhoto(url) {
+  const existing = document.getElementById('img-overlay');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'img-overlay'; el.id = 'img-overlay';
+  el.innerHTML = `<button class="img-overlay-close" onclick="document.getElementById('img-overlay').remove()">✕</button><img src="${url}" />`;
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+  document.getElementById('app').appendChild(el);
+}
+
+// ─── OPTIMISTIC UPDATES ───
+async function addItem() {
+  const name = document.getElementById('add-name').value.trim();
+  const qty = document.getElementById('add-qty').value || '1';
+  const note = document.getElementById('add-note').value.trim();
+  if (!name) return;
+  document.getElementById('add-name').value = '';
+  document.getElementById('add-qty').value = '1';
+  document.getElementById('add-note').value = '';
+  const photoFile = state.pendingPhoto?.file || null;
+  state.pendingPhoto = null;
+  const photoBtn = document.getElementById('photo-btn-add');
+  if (photoBtn) photoBtn.classList.remove('has-photo');
+  document.getElementById('photo-input-add').value = '';
+
+  const tempId = 'temp-' + Date.now();
+  const optimistic = { id: tempId, name, quantity: qty, note, added_by: state.userName, bought: false, pinned: false, group_id: state.groupId, created_at: new Date().toISOString(), image_url: null };
+  state.items.push(optimistic);
+  renderItems(state.items);
+
+  const { data } = await sb.from('items').insert({ group_id: state.groupId, name, quantity: qty, note, added_by: state.userName, bought: false, pinned: false }).select().single();
+  if (data) {
+    let image_url = null;
+    if (photoFile) {
+      image_url = await uploadPhoto(photoFile, data.id);
+      if (image_url) await sb.from('items').update({ image_url }).eq('id', data.id);
+    }
+    state.items = state.items.map(i => i.id === tempId ? { ...data, image_url } : i);
+    renderItems(state.items);
+  }
+}
+
+async function toggleItem(id, wasBought) {
+  // Optimistic
+  state.items = state.items.map(i => i.id === id ? { ...i, bought: !wasBought } : i);
+  renderItems(state.items);
+  await sb.from('items').update({ bought: !wasBought }).eq('id', id);
+}
+
+async function deleteItem(id) {
+  // Optimistic
+  state.items = state.items.filter(i => i.id !== id);
+  renderItems(state.items);
+  await sb.from('items').delete().eq('id', id);
+}
+
+async function togglePin(id, wasPinned) {
+  state.items = state.items.map(i => i.id === id ? { ...i, pinned: !wasPinned } : i);
+  // Sort: pinned first
+  state.items.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  renderItems(state.items);
+  await sb.from('items').update({ pinned: !wasPinned }).eq('id', id);
+}
+
+async function clearBought() {
+  const boughtIds = state.items.filter(i => i.bought).map(i => i.id);
+  state.items = state.items.filter(i => !i.bought);
+  renderItems(state.items);
+  if (boughtIds.length) await sb.from('items').delete().in('id', boughtIds);
+}
+
+// ─── EDIT ───
+function startEdit(id) {
+  state.editingId = id;
+  renderItems(state.items);
+  const nameEl = document.getElementById('edit-name-' + id);
+  if (nameEl) nameEl.focus();
+}
+
+function onEditPhotoSelected(input, id) {
+  const file = input.files[0];
+  if (!file) return;
+  state['editPhoto_' + id] = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.querySelector(`#item-${id} .img-preview`);
+    if (preview) { preview.src = e.target.result; }
+    else {
+      const btn = input.previousElementSibling;
+      if (btn) btn.classList.add('has-photo');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function cancelEdit() {
+  state.editingId = null;
+  renderItems(state.items);
+}
+
+async function saveEdit(id) {
+  const name = document.getElementById('edit-name-' + id).value.trim();
+  const qty = document.getElementById('edit-qty-' + id).value || '1';
+  const note = document.getElementById('edit-note-' + id).value.trim();
+  if (!name) return;
+  state.editingId = null;
+  const photoFile = state['editPhoto_' + id] || null;
+  delete state['editPhoto_' + id];
+  let image_url = state.items.find(i => i.id === id)?.image_url || null;
+  if (photoFile) image_url = await uploadPhoto(photoFile, id);
+  state.items = state.items.map(i => i.id === id ? { ...i, name, quantity: qty, note, image_url } : i);
+  renderItems(state.items);
+  await sb.from('items').update({ name, quantity: qty, note, ...(photoFile ? { image_url } : {}) }).eq('id', id);
+}
+
+// ─── HISTORY ───
+async function showHistory() {
+  showScreen('history');
+  const container = document.getElementById('history-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  const { data } = await sb.from('items').select('*').eq('group_id', state.groupId).eq('bought', true).order('created_at', { ascending: false });
+  const items = data || [];
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>' + t('emptyHistory') + '</p></div>';
+    return;
+  }
+  container.innerHTML = items.map(item => {
+    return `<div class="item-card bought" id="hist-${item.id}">
+      ${item.image_url ? `<img class="item-img" src="${escHtml(item.image_url)}" onclick="viewPhoto('${escHtml(item.image_url)}')" loading="lazy" />` : ''}
+      <div class="item-info">
+        <div class="item-name">${escHtml(item.name)}</div>
+        <div class="item-meta">
+          <span class="item-qty">×${escHtml(String(item.quantity||1))}</span>
+          ${item.note ? '<span>' + escHtml(item.note) + '</span>' : ''}
+          <span style="font-size:11px;color:var(--text-muted);">${t('by')}: ${escHtml(item.added_by)}</span>
+        </div>
+      </div>
+      <button onclick="restoreItem('${item.id}','${escHtml(item.name)}',${item.quantity||1},'${escHtml(item.note||'')}','${escHtml(item.image_url||'')}')"
+        style="flex-shrink:0;padding:5px 10px;border-radius:8px;background:var(--green-light);color:var(--green);border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:'Rubik',sans-serif;">
+        + הוסף
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function restoreItem(id, name, quantity, note, image_url) {
+  const btn = document.querySelector(`#hist-${id} button`);
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  const { data } = await sb.from('items').insert({
+    group_id: state.groupId, name, quantity, note: note || null,
+    added_by: state.userName, bought: false, pinned: false,
+    image_url: image_url || null
+  }).select().single();
+  if (data) {
+    state.items.push(data);
+    showToast('✅ ' + name);
+    if (btn) { btn.textContent = '✓'; btn.style.background = 'var(--green)'; btn.style.color = '#fff'; }
+  }
+}
+
+// ─── KEEP-ALIVE PINGS ───
+async function renderPingCard() {
+  const { data } = await sb.from('keepalive').select('ping_count,last_ping').eq('id', 1).maybeSingle();
+  const count = data?.ping_count ?? 0;
+  const last = data?.last_ping
+    ? new Date(data.last_ping).toLocaleString(state.lang === 'he' ? 'he-IL' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })
+    : t('never');
+  return `<div class="section-card">
+    <h3>${t('keepAlive')}</h3>
+    <div class="stats-grid" style="margin-bottom:0;">
+      <div class="stat-card" style="background:var(--card);"><div class="stat-num">${count.toLocaleString()}</div><div class="stat-label">${t('pingCount')}</div></div>
+      <div class="stat-card" style="background:var(--card);"><div class="stat-num" style="font-size:15px;line-height:34px;">${escHtml(last)}</div><div class="stat-label">${t('lastPing')}</div></div>
+    </div>
+  </div>`;
+}
+
+// ─── STATS ───
+async function showStats() {
+  showScreen('stats');
+  const container = document.getElementById('stats-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  const { data: allItems } = await sb.from('items').select('*').eq('group_id', state.groupId);
+  const items = allItems || [];
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>' + t('noStats') + '</p></div>' + await renderPingCard();
+    return;
+  }
+
+  const total = items.length;
+  const bought = items.filter(i => i.bought).length;
+  const pending = total - bought;
+  const pct = total > 0 ? Math.round((bought / total) * 100) : 0;
+
+  // Count by name
+  const nameCounts = {};
+  items.forEach(i => { nameCounts[i.name] = (nameCounts[i.name] || 0) + 1; });
+  const topItems = Object.entries(nameCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxCount = topItems[0]?.[1] || 1;
+
+  container.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">${t('totalItems')}</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--green);">${bought}</div><div class="stat-label">${t('boughtItems')}</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent);">${pending}</div><div class="stat-label">${t('pendingItems')}</div></div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--green);">${pct}%</div>
+        <div class="stat-label">${t('completionRate')}</div>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${pct}%"></div></div>
+      </div>
+    </div>
+    <div class="section-card">
+      <h3>${t('topItems')}</h3>
+      ${topItems.map(([name, count]) => `
+        <div class="top-item-row">
+          <span>${escHtml(name)}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:80px;background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+              <div style="width:${Math.round((count/maxCount)*100)}%;height:6px;background:var(--green);border-radius:4px;"></div>
+            </div>
+            <span style="font-size:13px;font-weight:700;color:var(--green);min-width:20px;">${count}</span>
+          </div>
+        </div>`).join('')}
+    </div>` + await renderPingCard();
+}
+
+// ─── SETTINGS ───
+async function showSettings() {
+  showScreen('settings');
+  const { data } = await sb.from('groups').select('*').eq('id', state.groupId).single();
+  if (data) {
+    state.allowMemberDelete = data.allow_member_delete;
+    state.requireApproval = data.require_approval ?? true;
+    document.getElementById('toggle-delete').classList.toggle('on', data.allow_member_delete);
+    document.getElementById('toggle-approve').classList.toggle('on', state.requireApproval);
+  }
+  document.getElementById('toggle-dark').classList.toggle('on', state.darkMode);
+  loadMembers();
+}
+
+async function toggleDeletePerm() {
+  state.allowMemberDelete = !state.allowMemberDelete;
+  document.getElementById('toggle-delete').classList.toggle('on', state.allowMemberDelete);
+  await sb.from('groups').update({ allow_member_delete: state.allowMemberDelete }).eq('id', state.groupId);
+}
+
+async function toggleApprovePerm() {
+  state.requireApproval = !state.requireApproval;
+  document.getElementById('toggle-approve').classList.toggle('on', state.requireApproval);
+  await sb.from('groups').update({ require_approval: state.requireApproval }).eq('id', state.groupId);
+}
+
+// ─── MEMBERS ───
+async function loadMembers() {
+  const container = document.getElementById('members-list');
+  container.innerHTML = '<div class="spinner" style="margin:16px auto;"></div>';
+  const { data } = await sb.from('members').select('*').eq('group_id', state.groupId);
+  const members = data || [];
+  if (members.length === 0) { container.innerHTML = ''; return; }
+  container.innerHTML = members.map(m => {
+    const isMe = m.user_id === state.userId;
+    const isPending = m.status === 'pending';
+    const isAdmin = m.user_id === state.isCreator;
+    const avatar = m.name ? m.name[0].toUpperCase() : '?';
+    return `<div class="member-row">
+      <div class="member-avatar ${isPending ? 'pending' : ''}">${avatar}</div>
+      <div style="flex:1;">
+        <div class="member-name">${escHtml(m.name)}${isMe ? ' (אני)' : ''}</div>
+        ${isPending ? `<div style="font-size:11px;color:var(--accent);">⏳ ממתין לאישור</div>` : ''}
+      </div>
+      ${isPending && state.isCreator ? `<button class="approve-btn" onclick="approveMember('${m.user_id}','${escHtml(m.name)}')">${t('approve')}</button>` : ''}
+      ${!isMe && state.isCreator ? `<button class="kick-btn" onclick="kickMember('${m.user_id}','${escHtml(m.name)}')">${t('kick')}</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function approveMember(userId, name) {
+  await sb.from('members').update({ status: 'approved' }).eq('group_id', state.groupId).eq('user_id', userId);
+  showToast('✅ ' + name);
+  loadMembers();
+  // Hide pending dot if no more pending
+  checkPendingMembers();
+}
+
+async function kickMember(userId, name) {
+  await sb.from('members').delete().eq('group_id', state.groupId).eq('user_id', userId);
+  showToast('🚪 ' + name);
+  loadMembers();
+}
+
+async function checkPendingMembers() {
+  if (!state.isCreator) return;
+  const { data } = await sb.from('members').select('id').eq('group_id', state.groupId).eq('status', 'pending');
+  const hasPending = data && data.length > 0;
+  const dot = document.getElementById('pending-dot');
+  if (dot) dot.style.display = hasPending ? 'block' : 'none';
+}
+
+// ─── EXPORT ───
+async function exportList() {
+  const { data } = await sb.from('items').select('*').eq('group_id', state.groupId).eq('bought', false).order('created_at', { ascending: true });
+  const items = data || [];
+  if (items.length === 0) { showToast('הרשימה ריקה'); return; }
+
+  let text = `📋 ${t('shoppingList')} — PIN: ${state.groupPin}\n`;
+  text += `${'─'.repeat(30)}\n`;
+  items.forEach(i => {
+    text += `• ${i.name} ×${i.quantity||1}${i.note ? ' (' + i.note + ')' : ''}\n`;
+  });
+  text += `\n${'─'.repeat(30)}\n${new Date().toLocaleDateString(state.lang === 'he' ? 'he-IL' : 'en-US')}`;
+
+  if (navigator.share) {
+    try { await navigator.share({ title: t('shoppingList'), text }); return; } catch(e) {}
+  }
+  // Fallback: copy
+  navigator.clipboard.writeText(text).then(() => showToast('📋 הרשימה הועתקה'));
+}
+
+// ─── REALTIME ───
+function subscribeRealtime() {
+  if (state.realtimeSub) sb.removeChannel(state.realtimeSub);
+  if (state.memberSub) sb.removeChannel(state.memberSub);
+
+  state.realtimeSub = sb.channel('items-' + state.groupId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: 'group_id=eq.' + state.groupId }, payload => {
+      if (payload.eventType === 'INSERT') {
+        const exists = state.items.find(i => i.id === payload.new.id);
+        if (!exists) {
+          // Remove any temp/optimistic placeholder for this item (same group, added by same user, same name)
+          state.items = state.items.filter(i => !(typeof i.id === 'string' && i.id.startsWith('temp-') && i.name === payload.new.name && i.added_by === payload.new.added_by));
+          state.items.push(payload.new);
+        } else {
+          state.items = state.items.map(i => i.id === payload.new.id ? payload.new : i);
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        state.items = state.items.map(i => i.id === payload.new.id ? payload.new : i);
+      } else if (payload.eventType === 'DELETE') {
+        state.items = state.items.filter(i => i.id !== payload.old.id);
+      }
+      state.items.sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0));
+      renderItems(state.items);
+    }).subscribe();
+
+  // Subscribe to member changes (for pending approval)
+  state.memberSub = sb.channel('members-' + state.groupId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'members', filter: 'group_id=eq.' + state.groupId }, async payload => {
+      if (payload.eventType === 'UPDATE' && payload.new.user_id === state.userId) {
+        if (payload.new.status === 'approved' && state.isPending) {
+          state.isPending = false;
+          document.querySelector('.add-bar').style.display = 'block';
+          showToast(t('approved'));
+          renderItems(state.items);
+        }
+        if (payload.eventType === 'DELETE' && payload.old.user_id === state.userId) {
+          showToast(t('kicked'));
+          doLeave();
+        }
+      }
+      checkPendingMembers();
+    }).subscribe();
+}
+
+// ─── COPY PIN ───
+function copyPin() {
+  navigator.clipboard.writeText(state.groupPin).then(() => showToast(t('pinCopied')));
+}
+
+// ─── MODAL ───
+function showModal(message, buttons) {
+  closeModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">
+    <div class="modal-handle"></div>
+    <h2 style="font-size:16px;text-align:center;margin-bottom:20px;">${message}</h2>
+    ${buttons.map(b => `<button class="btn ${b.cls}" onclick="(${b.action.toString()})()">${b.label}</button>`).join('')}
+  </div>`;
+  document.getElementById('app').appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+}
+function closeModal() { const el = document.getElementById('modal-overlay'); if (el) el.remove(); }
+
+// ─── TOAST ───
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.getElementById('app').appendChild(toast);
+  setTimeout(() => toast.remove(), 2100);
+}
+
+// ─── ENTER KEY ───
+document.getElementById('input-name').addEventListener('keyup', e => { if (e.key === 'Enter') saveName(); });
+document.getElementById('input-pin').addEventListener('keyup', e => { if (e.key === 'Enter') joinGroup(); });
+document.getElementById('add-name').addEventListener('keyup', e => { if (e.key === 'Enter') document.getElementById('add-qty').focus(); });
+document.getElementById('add-qty').addEventListener('keyup', e => { if (e.key === 'Enter') addItem(); });
+
+// ─── INIT ───
+applyTranslations();
+document.getElementById('toggle-dark').classList.toggle('on', state.darkMode);
+document.getElementById('btn-dark-home').textContent = state.darkMode ? '☀️' : '🌙';
+
+if (state.userName) {
+  document.getElementById('input-name').value = state.userName;
+  document.getElementById('h-title').textContent = t('hello') + ', ' + state.userName + '! 👋';
+  if (state.groupId) {
+    (async () => {
+      const { data } = await sb.from('groups').select('*').eq('id', state.groupId).single();
+      if (data) {
+        state.allowMemberDelete = data.allow_member_delete;
+        state.requireApproval = data.require_approval ?? true;
+        state.isCreator = data.creator_id === state.userId;
+        // Check own member status
+        const { data: me } = await sb.from('members').select('status').eq('group_id', state.groupId).eq('user_id', state.userId).single();
+        state.isPending = me?.status === 'pending';
+        enterList();
+      } else {
+        state.groupId = ''; localStorage.removeItem('sl_groupid');
+        showScreen('home');
+      }
+    })();
+  } else {
+    showScreen('home');
+  }
+}
+</script>
+</body>
+</html>
